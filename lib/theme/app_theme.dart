@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static const Color primaryColor = Color(0xFF4C6FFF);
-  static const Color backgroundColor = Color(0xFFF5F7FA);
+  static const Color backgroundColor = Color.fromARGB(255, 247, 245, 250);
   static const Color cardColor = Colors.white;
   static const Color textPrimary = Color(0xFF1A1C29);
   static const Color textSecondary = Color(0xFF8C8E99);
@@ -43,7 +43,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 16,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide(color: Colors.grey.shade200),
@@ -58,7 +61,7 @@ class AppTheme {
         ),
         hintStyle: TextStyle(color: textSecondary),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
         shape: RoundedRectangleBorder(
