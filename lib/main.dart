@@ -9,8 +9,8 @@ void main() async {
   // TODO: Replace with your actual Supabase URL and Anon Key
   // Configure Supabase here. You can find these keys in your Supabase project settings.
   await Supabase.initialize(
-    url: 'YOUR_SUPABASE_URL',
-    anonKey: 'YOUR_SUPABASE_ANON_KEY',
+    url: 'https://eznxtdzsvnfclgcavvhp.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV6bnh0ZHpzdm5mY2xnY2F2dmhwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI2MDA5MDcsImV4cCI6MjA3ODE3NjkwN30.uxkZPGvN9-KXqulS-KguoFAvR33RluyNR-O3SNH8iwI',
   );
 
   runApp(const MyApp());

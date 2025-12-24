@@ -27,6 +27,7 @@ class _TestScreenState extends State<TestScreen> {
   Map<int, QuestionStatus> _questionStatuses = {};
   int _timeLeft = 0;
   Timer? _timer;
+  Timer? _debounceTimer;
   bool _isSubmitting = false;
 
   // Question Palette
@@ -41,6 +42,7 @@ class _TestScreenState extends State<TestScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -52,7 +54,12 @@ class _TestScreenState extends State<TestScreen> {
       // 2. Initialize Session (Create or Resume)
       final user = await SupabaseService.getCurrentUser();
       if (user == null) {
-        // Handle unauthenticated state
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please login to continue')),
+          );
+          Navigator.of(context).pop();
+        }
         return;
       }
 
@@ -74,48 +81,48 @@ class _TestScreenState extends State<TestScreen> {
           sessionId = newSession['id'];
           startTime = DateTime.parse(newSession['started_at']);
         } else {
-          // Fallback if DB fails?
-          sessionId = 'temp';
-          startTime = DateTime.now();
+          throw Exception('Failed to create test session');
         }
       }
 
       // 3. Initialize Timer
-      final durationSeconds = localTest.duration; // It's in seconds based on web code (duration from JSON seems to be seconds if > 60 usually, web code divides by 60 for minutes display)
-      // Web code: `description: ${Math.floor((data.duration ?? 0) / 60)} minutes`
-      // Web code timer: `let remainingTime = testDuration - elapsedTime;`
-      // `LocalTest.duration` in flutter model parses to int.
-
+      final durationSeconds = localTest.duration;
       final elapsedTime = DateTime.now().difference(startTime).inSeconds;
       final remainingTime = durationSeconds - elapsedTime;
 
       if (remainingTime <= 0) {
-        // Time expired
+        // Time expired - submit immediately
         _timeLeft = 0;
-        // Should submit immediately
+        if (mounted) {
+          await _submitTest();
+        }
+        return;
       } else {
         _timeLeft = remainingTime;
         _startTimer();
       }
 
       // 4. Load Answers
-      // Prioritize DB answers, then LocalStorage (if we want to implement that fallback)
       final loadedAnswers = <String, String>{};
       savedAnswers.forEach((key, value) {
         loadedAnswers[key] = value.toString();
       });
 
-      // Initialize question statuses
+      // 5. Initialize question statuses
       final statuses = <int, QuestionStatus>{};
-      for (int i = 0; i < (localTest.questions.length); i++) {
+      for (int i = 0; i < localTest.questions.length; i++) {
         final qUuid = localTest.questions[i].uuid;
         if (loadedAnswers.containsKey(qUuid)) {
           statuses[i] = QuestionStatus.answered;
         } else {
-          statuses[i] = QuestionStatus.notVisited; // or notAnswered if we visited
+          statuses[i] = QuestionStatus.notVisited;
         }
       }
-      statuses[0] = QuestionStatus.notAnswered; // Current is visited
+      
+      // Mark first question as visited (but don't override if it's already answered)
+      if (statuses[0] != QuestionStatus.answered) {
+        statuses[0] = QuestionStatus.notAnswered;
+      }
 
       if (mounted) {
         setState(() {
@@ -146,9 +153,11 @@ class _TestScreenState extends State<TestScreen> {
         timer.cancel();
         _submitTest();
       } else {
-        setState(() {
-          _timeLeft--;
-        });
+        if (mounted) {
+          setState(() {
+            _timeLeft--;
+          });
+        }
       }
     });
   }
@@ -164,16 +173,15 @@ class _TestScreenState extends State<TestScreen> {
       if (_studentTestId != null) {
         final success = await SupabaseService.submitTest(_studentTestId!, _answers);
         if (success) {
-            await SupabaseService.triggerScoreCalculation(_studentTestId!);
-            if (mounted) {
-                // Navigate to result or success page
-                Navigator.of(context).pop(); // Go back for now, or replace with ResultScreen
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Test Submitted Successfully!')),
-                );
-            }
+          await SupabaseService.triggerScoreCalculation(_studentTestId!);
+          if (mounted) {
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Test Submitted Successfully!')),
+            );
+          }
         } else {
-            throw Exception('Submission failed');
+          throw Exception('Submission failed');
         }
       }
     } catch (e) {
@@ -194,35 +202,48 @@ class _TestScreenState extends State<TestScreen> {
       _questionStatuses[_currentQuestionIndex] = QuestionStatus.answered;
     });
 
-    // Debounced save to DB (simplified here: just call it, maybe optimize later)
-    if (_studentTestId != null) {
-      SupabaseService.updateAnswers(_studentTestId!, _answers);
-    }
+    // Debounced save to DB
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (_studentTestId != null) {
+        SupabaseService.updateAnswers(_studentTestId!, _answers);
+      }
+    });
   }
 
   void _clearAnswer(String questionUuid) {
     setState(() {
       _answers.remove(questionUuid);
-      _questionStatuses[_currentQuestionIndex] = QuestionStatus.notAnswered;
+      final currentStatus = _questionStatuses[_currentQuestionIndex];
+      // Don't change status if it's marked for review
+      if (currentStatus != QuestionStatus.markedForReview) {
+        _questionStatuses[_currentQuestionIndex] = QuestionStatus.notAnswered;
+      }
     });
-     if (_studentTestId != null) {
-      SupabaseService.updateAnswers(_studentTestId!, _answers);
-    }
+    
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () {
+      if (_studentTestId != null) {
+        SupabaseService.updateAnswers(_studentTestId!, _answers);
+      }
+    });
   }
 
   void _markForReview() {
     setState(() {
-        _questionStatuses[_currentQuestionIndex] = QuestionStatus.markedForReview;
+      _questionStatuses[_currentQuestionIndex] = QuestionStatus.markedForReview;
     });
   }
 
   void _nextQuestion() {
     if (_testData != null && _currentQuestionIndex < _testData!.questions.length - 1) {
       setState(() {
-        if (_questionStatuses[_currentQuestionIndex + 1] == QuestionStatus.notVisited) {
-            _questionStatuses[_currentQuestionIndex + 1] = QuestionStatus.notAnswered;
+        final nextIndex = _currentQuestionIndex + 1;
+        // Only mark as notAnswered if not visited and not already answered
+        if (_questionStatuses[nextIndex] == QuestionStatus.notVisited) {
+          _questionStatuses[nextIndex] = QuestionStatus.notAnswered;
         }
-        _currentQuestionIndex++;
+        _currentQuestionIndex = nextIndex;
       });
     }
   }
@@ -233,6 +254,22 @@ class _TestScreenState extends State<TestScreen> {
         _currentQuestionIndex--;
       });
     }
+  }
+
+  void _jumpToQuestion(int index) {
+    setState(() {
+      // Mark the question as visited if not visited before
+      if (_questionStatuses[index] == QuestionStatus.notVisited) {
+        final qUuid = _testData!.questions[index].uuid;
+        if (_answers.containsKey(qUuid)) {
+          _questionStatuses[index] = QuestionStatus.answered;
+        } else {
+          _questionStatuses[index] = QuestionStatus.notAnswered;
+        }
+      }
+      _currentQuestionIndex = index;
+      _showPalette = false; // Close drawer on navigation
+    });
   }
 
   String _formatTime(int seconds) {
@@ -251,8 +288,20 @@ class _TestScreenState extends State<TestScreen> {
     }
 
     if (_testData == null) {
-      return const Scaffold(
-        body: Center(child: Text('Failed to load test data')),
+      return Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('Failed to load test data'),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Go Back'),
+              ),
+            ],
+          ),
+        ),
       );
     }
 
@@ -272,27 +321,27 @@ class _TestScreenState extends State<TestScreen> {
             },
           ),
           TextButton(
-            onPressed: () {
-                 showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                      title: const Text("Submit Test"),
-                      content: const Text("Are you sure you want to submit the test?"),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: const Text("Cancel"),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(ctx);
-                            _submitTest();
-                          },
-                          child: const Text("Submit"),
-                        ),
-                      ],
+            onPressed: _isSubmitting ? null : () {
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text("Submit Test"),
+                  content: const Text("Are you sure you want to submit the test?"),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text("Cancel"),
                     ),
-                  );
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _submitTest();
+                      },
+                      child: const Text("Submit"),
+                    ),
+                  ],
+                ),
+              );
             },
             child: const Text('Submit', style: TextStyle(color: Colors.red)),
           )
@@ -327,33 +376,40 @@ class _TestScreenState extends State<TestScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                         TeXView(
-                          renderingEngine: const TeXViewRenderingEngine.katex(),
+                        TeXView(
                           child: TeXViewColumn(children: [
-                            TeXViewDocument(question.text,
-                                style: const TeXViewStyle(
-                                    contentColor: Colors.black,
-                                    fontStyle: TeXViewFontStyle(fontSize: 18))),
+                            TeXViewDocument(
+                              question.text,
+                              style: TeXViewStyle(
+                                contentColor: Colors.black,
+                                fontStyle: TeXViewFontStyle(fontSize: 18),
+                              ),
+                            ),
                           ]),
                         ),
                         const SizedBox(height: 16),
                         if (question.image != null)
-                           Image.network(question.image!),
+                          Image.network(
+                            question.image!,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Text('Failed to load image');
+                            },
+                          ),
                         const SizedBox(height: 24),
 
                         // Options or Input
                         if (question.options.isNotEmpty)
-                          ...question.options.map((option) => _buildOption(option, selectedAnswer)).toList()
+                          ...question.options.map((option) => _buildOption(option, selectedAnswer))
                         else
                           NumericalInputWidget(
                             key: ValueKey(question.uuid),
                             initialValue: selectedAnswer,
                             onChanged: (val) {
-                                if (val.isEmpty) {
-                                    _clearAnswer(question.uuid);
-                                } else {
-                                    _saveAnswer(question.uuid, val);
-                                }
+                              if (val.isEmpty) {
+                                _clearAnswer(question.uuid);
+                              } else {
+                                _saveAnswer(question.uuid, val);
+                              }
                             },
                           ),
                       ],
@@ -363,36 +419,38 @@ class _TestScreenState extends State<TestScreen> {
 
                 // Footer Controls
                 Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                        border: Border(top: BorderSide(color: Colors.grey.shade300)),
-                    ),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                            ElevatedButton.icon(
-                                onPressed: _currentQuestionIndex > 0 ? _prevQuestion : null,
-                                icon: const Icon(Icons.arrow_back),
-                                label: const Text("Prev"),
-                            ),
-                            ElevatedButton.icon(
-                                onPressed: _markForReview,
-                                icon: const Icon(Icons.bookmark_border),
-                                label: const Text("Review"),
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                            ),
-                             ElevatedButton.icon(
-                                onPressed: _currentQuestionIndex < _testData!.questions.length - 1 ? _nextQuestion : null,
-                                icon: const Icon(Icons.arrow_forward),
-                                label: const Text("Next"),
-                            ),
-                        ],
-                    ),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border(top: BorderSide(color: Colors.grey.shade300)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _currentQuestionIndex > 0 ? _prevQuestion : null,
+                        icon: const Icon(Icons.arrow_back),
+                        label: const Text("Prev"),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _markForReview,
+                        icon: const Icon(Icons.bookmark_border),
+                        label: const Text("Review"),
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _currentQuestionIndex < _testData!.questions.length - 1 
+                            ? _nextQuestion 
+                            : null,
+                        icon: const Icon(Icons.arrow_forward),
+                        label: const Text("Next"),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-          if (_showPalette && MediaQuery.of(context).size.width > 600) // Permanent sidebar on large screens
+          if (_showPalette && MediaQuery.of(context).size.width > 600)
             SizedBox(width: 300, child: _buildQuestionPalette()),
         ],
       ),
@@ -402,53 +460,54 @@ class _TestScreenState extends State<TestScreen> {
   Widget _buildOption(LocalOption option, String? selectedId) {
     final isSelected = selectedId == option.id;
     return GestureDetector(
-        onTap: () {
-            if (isSelected) {
-                _clearAnswer(_testData!.questions[_currentQuestionIndex].uuid);
-            } else {
-                _saveAnswer(_testData!.questions[_currentQuestionIndex].uuid, option.id);
-            }
-        },
-        child: Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-                border: Border.all(
-                    color: isSelected ? const Color(0xFF4C6FFF) : Colors.grey.shade300,
-                    width: 2,
-                ),
-                borderRadius: BorderRadius.circular(8),
-                color: isSelected ? const Color(0xFF4C6FFF).withOpacity(0.1) : null,
-            ),
-            child: Row(
-                children: [
-                    Container(
-                        width: 30,
-                        height: 30,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isSelected ? const Color(0xFF4C6FFF) : Colors.transparent,
-                            border: Border.all(color: isSelected ? const Color(0xFF4C6FFF) : Colors.grey),
-                        ),
-                        child: Text(
-                            option.id.toUpperCase(),
-                            style: TextStyle(
-                                color: isSelected ? Colors.white : Colors.black,
-                                fontWeight: FontWeight.bold,
-                            ),
-                        ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                         child: TeXView(
-                          renderingEngine: const TeXViewRenderingEngine.katex(),
-                          child: TeXViewDocument(option.text),
-                        ),
-                    ),
-                ],
-            ),
+      onTap: () {
+        if (isSelected) {
+          _clearAnswer(_testData!.questions[_currentQuestionIndex].uuid);
+        } else {
+          _saveAnswer(_testData!.questions[_currentQuestionIndex].uuid, option.id);
+        }
+      },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          border: Border.all(
+            color: isSelected ? const Color(0xFF4C6FFF) : Colors.grey.shade300,
+            width: 2,
+          ),
+          borderRadius: BorderRadius.circular(8),
+          color: isSelected ? const Color(0xFF4C6FFF).withOpacity(0.1) : null,
         ),
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSelected ? const Color(0xFF4C6FFF) : Colors.transparent,
+                border: Border.all(
+                  color: isSelected ? const Color(0xFF4C6FFF) : Colors.grey,
+                ),
+              ),
+              child: Text(
+                option.id.toUpperCase(),
+                style: TextStyle(
+                  color: isSelected ? Colors.white : Colors.black,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TeXView(
+                child: TeXViewDocument(option.text),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -456,7 +515,14 @@ class _TestScreenState extends State<TestScreen> {
     return Drawer(
       child: Column(
         children: [
-          DrawerHeader(child: Center(child: Text("Question Palette"))),
+          const DrawerHeader(
+            child: Center(
+              child: Text(
+                "Question Palette",
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
           Expanded(
             child: GridView.builder(
               padding: const EdgeInsets.all(8),
@@ -469,32 +535,33 @@ class _TestScreenState extends State<TestScreen> {
               itemBuilder: (context, index) {
                 final status = _questionStatuses[index] ?? QuestionStatus.notVisited;
                 Color color;
+                
+                // Fixed switch statement with proper assignment
                 switch (status) {
                   case QuestionStatus.answered:
-                    color: Colors.green;
+                    color = Colors.green;
                     break;
                   case QuestionStatus.notAnswered:
-                    color: Colors.red;
+                    color = Colors.red;
                     break;
                   case QuestionStatus.markedForReview:
-                    color: Colors.purple;
+                    color = Colors.purple;
                     break;
                   default:
-                    color: Colors.grey.shade300;
+                    color = Colors.grey.shade300;
                 }
 
                 return InkWell(
-                  onTap: () {
-                    setState(() {
-                      _currentQuestionIndex = index;
-                      _showPalette = false; // Close drawer on mobile
-                    });
-                  },
+                  onTap: () => _jumpToQuestion(index),
                   child: Container(
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: color == Colors.grey.shade300 ? Colors.transparent : color.withOpacity(0.2),
-                      border: Border.all(color: color == Colors.grey.shade300 ? Colors.grey : color),
+                      color: color == Colors.grey.shade300 
+                          ? Colors.transparent 
+                          : color.withOpacity(0.2),
+                      border: Border.all(
+                        color: color == Colors.grey.shade300 ? Colors.grey : color,
+                      ),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
@@ -510,32 +577,32 @@ class _TestScreenState extends State<TestScreen> {
             ),
           ),
           const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              alignment: WrapAlignment.center,
-              children: [
-                  _legendItem(Colors.green, "Answered"),
-                  _legendItem(Colors.red, "Not Answered"),
-                  _legendItem(Colors.purple, "Review"),
-                  _legendItem(Colors.grey, "Not Visited"),
-              ],
-            ),
-            const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            alignment: WrapAlignment.center,
+            children: [
+              _legendItem(Colors.green, "Answered"),
+              _legendItem(Colors.red, "Not Answered"),
+              _legendItem(Colors.purple, "Review"),
+              _legendItem(Colors.grey, "Not Visited"),
+            ],
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
   }
 
   Widget _legendItem(Color color, String label) {
-      return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-              Container(width: 12, height: 12, color: color),
-              const SizedBox(width: 4),
-              Text(label, style: const TextStyle(fontSize: 10)),
-          ],
-      );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(width: 12, height: 12, color: color),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 10)),
+      ],
+    );
   }
 }
 
@@ -543,7 +610,11 @@ class NumericalInputWidget extends StatefulWidget {
   final String? initialValue;
   final ValueChanged<String> onChanged;
 
-  const NumericalInputWidget({super.key, this.initialValue, required this.onChanged});
+  const NumericalInputWidget({
+    super.key,
+    this.initialValue,
+    required this.onChanged,
+  });
 
   @override
   State<NumericalInputWidget> createState() => _NumericalInputWidgetState();
@@ -565,39 +636,26 @@ class _NumericalInputWidgetState extends State<NumericalInputWidget> {
   }
 
   @override
-  void didUpdateWidget(covariant NumericalInputWidget oldWidget) {
-      super.didUpdateWidget(oldWidget);
-      if (widget.initialValue != _controller.text) {
-           // Only update if the value is different to avoid cursor jumping if we were to push back updates
-           // But here initialValue comes from parent state, which is updated by onChanged.
-           // If we type "1", onChanged fires, parent updates state to "1", passes "1" back.
-           // _controller.text is already "1". So no change.
-           // If we navigate away and back, Key changes, so new State, new InitState.
-
-           // However, if we receive an update from somewhere else (unlikely here), we might need this.
-           // For now, let's just respect initialValue if it differs significantly, but be careful with cursor.
-           if (widget.initialValue != null && widget.initialValue != _controller.text) {
-               _controller.text = widget.initialValue!;
-           }
-      }
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text("Enter Numerical Answer:", style: TextStyle(fontWeight: FontWeight.bold)),
+        const Text(
+          "Enter Numerical Answer:",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: _controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+          keyboardType: const TextInputType.numberWithOptions(
+            decimal: true,
+            signed: true,
+          ),
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             hintText: "Type your answer here...",
           ),
           onChanged: widget.onChanged,
-          onSubmitted: widget.onChanged,
         ),
       ],
     );
