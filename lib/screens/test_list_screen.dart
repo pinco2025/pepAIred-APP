@@ -62,7 +62,7 @@ class _TestListScreenState extends State<TestListScreen> {
                     style: TextStyle(fontSize: 16, color: Colors.grey),
                   ),
                   const SizedBox(height: 24),
-                  ..._categories.map((category) => _buildCategorySection(category)).toList(),
+                  ..._categories.map((category) => _buildCategorySection(category)),
                 ],
               ),
             ),

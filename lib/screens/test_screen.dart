@@ -1,11 +1,9 @@
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:prepaired/models/test_models.dart';
 import 'package:prepaired/services/supabase_service.dart';
 import 'package:prepaired/services/test_data_service.dart';
 import 'package:flutter_tex/flutter_tex.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class TestScreen extends StatefulWidget {
   final Test test;

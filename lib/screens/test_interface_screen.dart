@@ -456,8 +456,9 @@ class _TestInterfaceScreenState extends State<TestInterfaceScreen> {
                         final q = _testData!.questions[index];
                         final currentSectionName =
                             _testData!.sections[_currentSectionIndex].name;
-                        if (q.section != currentSectionName)
+                        if (q.section != currentSectionName) {
                           return const SizedBox.shrink();
+                        }
 
                         Color color = Colors.grey.shade300;
                         if (_questionStatuses[index] ==
