@@ -7,6 +7,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // TODO: Replace with your actual Supabase URL and Anon Key
+  // Configure Supabase here. You can find these keys in your Supabase project settings.
   await Supabase.initialize(
     url: 'YOUR_SUPABASE_URL',
     anonKey: 'YOUR_SUPABASE_ANON_KEY',

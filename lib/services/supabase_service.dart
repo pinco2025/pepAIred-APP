@@ -1,12 +1,25 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:http/http.dart' as http;
+import '../models/test_models.dart';
 
 class SupabaseService {
   static final SupabaseClient supabase = Supabase.instance.client;
 
+  /// Returns the current authenticated user.
   static Future<User?> getCurrentUser() async {
     final session = supabase.auth.currentSession;
     return session?.user;
+  }
+
+  static Future<List<Test>> fetchTests() async {
+    try {
+      final response = await supabase.from('tests').select('*');
+      final List<dynamic> data = response as List<dynamic>;
+      return data.map((json) => Test.fromJson(json)).toList();
+    } catch (e) {
+      print('Error fetching tests: $e');
+      return [];
+    }
   }
 
   static Future<Map<String, dynamic>?> getExistingTestSession(

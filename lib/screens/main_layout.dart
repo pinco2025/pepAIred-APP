@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:prepaired/theme/app_theme.dart';
 import 'package:prepaired/screens/home_screen.dart';
 import 'package:prepaired/screens/subjects_screen.dart';
+import 'package:prepaired/screens/test_list_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -24,21 +25,26 @@ class _MainLayoutState extends State<MainLayout> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _screens[_currentIndex],
-      floatingActionButton: Container(
-        height: 64,
-        width: 64,
-        decoration: BoxDecoration(
-          color: AppTheme.primaryColor,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.primaryColor.withOpacity(0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+      floatingActionButton: GestureDetector(
+        onTap: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const TestListScreen()));
+        },
+        child: Container(
+          height: 64,
+          width: 64,
+          decoration: BoxDecoration(
+            color: AppTheme.primaryColor,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.primaryColor.withOpacity(0.3),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: const Icon(Icons.assignment_turned_in, color: Colors.white, size: 32),
         ),
-        child: const Icon(Icons.question_mark_rounded, color: Colors.white, size: 32),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       bottomNavigationBar: BottomAppBar(
