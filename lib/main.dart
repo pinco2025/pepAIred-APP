@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:prepaired/theme/app_theme.dart';
 import 'package:prepaired/screens/auth_screen.dart';
+import 'package:prepaired/screens/main_layout.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,7 +26,31 @@ class MyApp extends StatelessWidget {
       title: 'Prepaired',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const AuthScreen(),
+      home: const AuthGate(),
+    );
+  }
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<AuthState>(
+      stream: Supabase.instance.client.auth.onAuthStateChange,
+      builder: (context, snapshot) {
+        // If the snapshot has data, use it to determine session status
+        // Otherwise, fallback to checking currentSession directly
+        final session = snapshot.hasData
+            ? snapshot.data!.session
+            : Supabase.instance.client.auth.currentSession;
+
+        if (session != null) {
+          return const MainLayout();
+        } else {
+          return const AuthScreen();
+        }
+      },
     );
   }
 }
