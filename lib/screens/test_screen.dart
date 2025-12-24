@@ -71,7 +71,7 @@ class _TestScreenState extends State<TestScreen> {
 
       if (existingSession != null) {
         sessionId = existingSession['id'];
-        startTime = DateTime.parse(existingSession['started_at']).toUtc();
+        startTime = DateTime.parse(existingSession['started_at']);
         if (existingSession['answers'] != null) {
           savedAnswers = Map<String, dynamic>.from(existingSession['answers']);
         }
@@ -79,16 +79,15 @@ class _TestScreenState extends State<TestScreen> {
         final newSession = await SupabaseService.createTestSession(user.id, widget.test.id);
         if (newSession != null) {
           sessionId = newSession['id'];
-          startTime = DateTime.parse(newSession['started_at']).toUtc();
+          startTime = DateTime.parse(newSession['started_at']);
         } else {
           throw Exception('Failed to create test session');
         }
       }
 
-      // 3. Initialize Timer (Use UTC)
+      // 3. Initialize Timer
       final durationSeconds = localTest.duration;
-      final nowUtc = DateTime.now().toUtc();
-      final elapsedTime = nowUtc.difference(startTime).inSeconds;
+      final elapsedTime = DateTime.now().difference(startTime).inSeconds;
       final remainingTime = durationSeconds - elapsedTime;
 
       if (remainingTime <= 0) {
@@ -207,7 +206,6 @@ class _TestScreenState extends State<TestScreen> {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
       if (_studentTestId != null) {
-        print("Saving answers for session $_studentTestId: $_answers");
         SupabaseService.updateAnswers(_studentTestId!, _answers);
       }
     });
@@ -226,7 +224,6 @@ class _TestScreenState extends State<TestScreen> {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 500), () {
       if (_studentTestId != null) {
-        print("Saving answers (cleared) for session $_studentTestId: $_answers");
         SupabaseService.updateAnswers(_studentTestId!, _answers);
       }
     });
@@ -312,20 +309,15 @@ class _TestScreenState extends State<TestScreen> {
     final selectedAnswer = _answers[question.uuid];
 
     return Scaffold(
-      key: _scaffoldKey, // Used to open drawer
       appBar: AppBar(
         title: Text(_formatTime(_timeLeft)),
-        leading: Builder(
-          builder: (context) => IconButton(
-             icon: const Icon(Icons.menu),
-             onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.grid_view),
             onPressed: () {
-               _scaffoldKey.currentState?.openDrawer();
+              setState(() {
+                _showPalette = !_showPalette;
+              });
             },
           ),
           TextButton(
@@ -355,7 +347,7 @@ class _TestScreenState extends State<TestScreen> {
           )
         ],
       ),
-      drawer: _buildQuestionPalette(),
+      drawer: _showPalette ? _buildQuestionPalette() : null,
       body: Row(
         children: [
           Expanded(
@@ -385,20 +377,24 @@ class _TestScreenState extends State<TestScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         TeXView(
-                          key: ValueKey(question.uuid), // Force rebuild on question change
                           child: TeXViewColumn(children: [
-                             TeXViewDocument(
-                               question.text,
-                               style: TeXViewStyle(
-                                 contentColor: Colors.black,
-                                 fontStyle: TeXViewFontStyle(fontSize: 18),
-                               ),
-                             ),
-                             if (question.image != null)
-                               TeXViewImage.network(question.image!),
-                           ]),
-                           loadingWidgetBuilder: (context) => const Center(child: CircularProgressIndicator()),
+                            TeXViewDocument(
+                              question.text,
+                              style: TeXViewStyle(
+                                contentColor: Colors.black,
+                                fontStyle: TeXViewFontStyle(fontSize: 18),
+                              ),
+                            ),
+                          ]),
                         ),
+                        const SizedBox(height: 16),
+                        if (question.image != null)
+                          Image.network(
+                            question.image!,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Text('Failed to load image');
+                            },
+                          ),
                         const SizedBox(height: 24),
 
                         // Options or Input
@@ -454,15 +450,12 @@ class _TestScreenState extends State<TestScreen> {
               ],
             ),
           ),
-          if (MediaQuery.of(context).size.width > 800) // Show sidebar only on large screens
-             SizedBox(width: 300, child: _buildQuestionPalette()),
+          if (_showPalette && MediaQuery.of(context).size.width > 600)
+            SizedBox(width: 300, child: _buildQuestionPalette()),
         ],
       ),
     );
   }
-
-  // Key for accessing scaffold to open drawer
-  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   Widget _buildOption(LocalOption option, String? selectedId) {
     final isSelected = selectedId == option.id;
@@ -508,16 +501,8 @@ class _TestScreenState extends State<TestScreen> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              // Using TeXWidget (which uses TeX2SVG) to avoid heavy WebViews for options
-              child: TeX2SVG(
-                 math: option.text,
-                 style: TeXViewStyle(
-                   contentColor: isSelected ? Colors.black : Colors.black,
-                   // Note: TeX2SVG doesn't support full style like TeXView, but TeXViewStyle is accepted by some widgets.
-                   // TeX2SVG accepts style for the container? No, it usually takes 'math' and 'style' params if it's a wrapper,
-                   // but let's check standard flutter_tex usage.
-                   // Actually TeX2SVG is a widget.
-                 ),
+              child: TeXView(
+                child: TeXViewDocument(option.text),
               ),
             ),
           ],
@@ -567,10 +552,7 @@ class _TestScreenState extends State<TestScreen> {
                 }
 
                 return InkWell(
-                  onTap: () {
-                    _jumpToQuestion(index);
-                    if (Navigator.canPop(context)) Navigator.pop(context); // Close drawer on mobile
-                  },
+                  onTap: () => _jumpToQuestion(index),
                   child: Container(
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
