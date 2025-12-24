@@ -21,7 +21,7 @@ class SupabaseService {
           .order('started_at', ascending: false)
           .limit(1);
 
-      if (response != null && (response as List).isNotEmpty) {
+      if ((response as List).isNotEmpty) {
         return response[0];
       }
       return null;
