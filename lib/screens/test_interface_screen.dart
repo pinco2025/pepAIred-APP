@@ -10,7 +10,7 @@ import '../services/supabase_service.dart';
 class TestInterfaceScreen extends StatefulWidget {
   final Test test;
 
-  const TestInterfaceScreen({Key? key, required this.test}) : super(key: key);
+  const TestInterfaceScreen({super.key, required this.test});
 
   @override
   _TestInterfaceScreenState createState() => _TestInterfaceScreenState();
@@ -407,8 +407,9 @@ class _TestInterfaceScreenState extends State<TestInterfaceScreen> {
                                         if (q.section != currentSectionName) return const SizedBox.shrink();
 
                                         Color color = Colors.grey.shade300;
-                                        if (_questionStatuses[index] == QuestionStatus.answered) color = Colors.green.shade200;
-                                        else if (_questionStatuses[index] == QuestionStatus.notAnswered) color = Colors.red.shade200;
+                                        if (_questionStatuses[index] == QuestionStatus.answered) {
+                                          color = Colors.green.shade200;
+                                        } else if (_questionStatuses[index] == QuestionStatus.notAnswered) color = Colors.red.shade200;
                                         else if (_questionStatuses[index] == QuestionStatus.markedForReview) color = Colors.purple.shade200;
 
                                         return InkWell(
@@ -547,7 +548,7 @@ class _TestInterfaceScreenState extends State<TestInterfaceScreen> {
                                             ),
                                         ),
                                     );
-                                }).toList(),
+                                }),
                             ]
                         ],
                     ),
