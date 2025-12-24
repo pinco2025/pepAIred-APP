@@ -134,9 +134,9 @@ class LocalTest {
   }
 }
 
-// These models reflect the initial metadata passed to the screen
+// Represents the metadata row from Supabase 'tests' table
 class Test {
-  final String id;
+  final String id; // maps to testID
   final String title;
   final String description;
   final int duration;
@@ -144,10 +144,8 @@ class Test {
   final String markingScheme;
   final List<String> instructions;
   final String url;
+  final String category;
   final String? exam;
-  final List<Question>? questions;
-  final int? maximumMarks;
-  final List<Section>? sections;
 
   Test({
     required this.id,
@@ -158,13 +156,40 @@ class Test {
     required this.markingScheme,
     required this.instructions,
     required this.url,
+    required this.category,
     this.exam,
-    this.questions,
-    this.maximumMarks,
-    this.sections,
+  });
+
+  factory Test.fromJson(Map<String, dynamic> json) {
+    return Test(
+      id: json['testID'] as String,
+      title: json['title'] as String,
+      description: json['description'] as String? ?? '',
+      duration: json['duration'] as int? ?? 0,
+      totalQuestions: json['totalQuestions'] as int? ?? 0,
+      markingScheme: json['markingScheme'] as String? ?? '',
+      instructions: (json['instructions'] as List?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
+      url: json['url'] as String,
+      category: json['category'] as String? ?? 'General',
+      exam: json['exam'] as String?,
+    );
+  }
+}
+
+class TestCategory {
+  final String title;
+  final List<Test> tests;
+
+  TestCategory({
+    required this.title,
+    required this.tests,
   });
 }
 
+// Deprecated: Kept for backward compatibility if needed, but LocalQuestion is preferred.
 class Question {
   final String id;
   final String uuid;

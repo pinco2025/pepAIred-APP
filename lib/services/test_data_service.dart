@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../models/test_models.dart';
 
 class TestDataService {
+  /// Fetches test data from the provided URL.
   static Future<LocalTest> fetchTestData(String url) async {
     try {
       final response = await http.get(Uri.parse(url));
