@@ -37,6 +37,10 @@ dependencies:
   google_fonts: ^6.1.0
   percent_indicator: ^4.2.3
   fl_chart: ^0.66.0
+  http: ^1.2.0
+  supabase_flutter: ^2.3.0
+  shared_preferences: ^2.2.0
+  flutter_tex: ^4.0.0+3
 
 dev_dependencies:
   flutter_test:
