@@ -19,7 +19,7 @@ class _TestScreenState extends State<TestScreen> {
   bool _isLoading = true;
   LocalTest? _testData;
   String? _studentTestId;
-  bool _showPalette = true;
+  final bool _showPalette = true;
 
   // State variables for the test
   int _currentQuestionIndex = 0;
