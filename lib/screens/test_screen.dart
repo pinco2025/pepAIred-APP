@@ -15,6 +15,7 @@ class TestScreen extends StatefulWidget {
 }
 
 class _TestScreenState extends State<TestScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _isLoading = true;
   LocalTest? _testData;
   String? _studentTestId;
@@ -27,9 +28,6 @@ class _TestScreenState extends State<TestScreen> {
   Timer? _timer;
   Timer? _debounceTimer;
   bool _isSubmitting = false;
-
-  // Question Palette
-  bool _showPalette = false;
 
   @override
   void initState() {
@@ -85,7 +83,9 @@ class _TestScreenState extends State<TestScreen> {
 
       // 3. Initialize Timer
       final durationSeconds = localTest.duration;
-      final elapsedTime = DateTime.now().difference(startTime).inSeconds;
+      final nowUtc = DateTime.now().toUtc();
+      // Ensure startTime is UTC. If parsed from '...Z', it is UTC.
+      final elapsedTime = nowUtc.difference(startTime.toUtc()).inSeconds;
       final remainingTime = durationSeconds - elapsedTime;
 
       if (remainingTime <= 0) {
@@ -266,8 +266,8 @@ class _TestScreenState extends State<TestScreen> {
         }
       }
       _currentQuestionIndex = index;
-      _showPalette = false; // Close drawer on navigation
     });
+    Navigator.pop(context); // Close drawer
   }
 
   String _formatTime(int seconds) {
@@ -307,15 +307,14 @@ class _TestScreenState extends State<TestScreen> {
     final selectedAnswer = _answers[question.uuid];
 
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         title: Text(_formatTime(_timeLeft)),
         actions: [
           IconButton(
             icon: const Icon(Icons.grid_view),
             onPressed: () {
-              setState(() {
-                _showPalette = !_showPalette;
-              });
+              _scaffoldKey.currentState?.openEndDrawer();
             },
           ),
           TextButton(
@@ -345,7 +344,7 @@ class _TestScreenState extends State<TestScreen> {
           )
         ],
       ),
-      drawer: _showPalette ? _buildQuestionPalette() : null,
+      endDrawer: _buildQuestionPalette(),
       body: Row(
         children: [
           Expanded(
@@ -375,6 +374,7 @@ class _TestScreenState extends State<TestScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         TeXView(
+                          renderingEngine: const TeXViewRenderingEngine.katex(),
                           child: TeXViewColumn(children: [
                             TeXViewDocument(
                               question.text,
@@ -500,6 +500,7 @@ class _TestScreenState extends State<TestScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: TeXView(
+                renderingEngine: const TeXViewRenderingEngine.katex(),
                 child: TeXViewDocument(option.text),
               ),
             ),
