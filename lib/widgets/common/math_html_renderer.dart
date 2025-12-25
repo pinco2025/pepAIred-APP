@@ -31,13 +31,13 @@ class MathHtmlRenderer extends StatelessWidget {
     // Inline math: \(...\)
     processed = processed.replaceAllMapped(
       RegExp(r'\\\((.*?)\\\)', dotAll: true),
-      (match) => '<tex-inline>${match.group(1)}</tex-inline>',
+      (match) => '<span class="tex-inline">${match.group(1)}</span>',
     );
 
     // Inline math: $...$
     processed = processed.replaceAllMapped(
       RegExp(r'\$(.*?)\$', dotAll: true),
-      (match) => '<tex-inline>${match.group(1)}</tex-inline>',
+      (match) => '<span class="tex-inline">${match.group(1)}</span>',
     );
 
     return processed;
@@ -61,7 +61,8 @@ class MathHtmlRenderer extends StatelessWidget {
             ),
           );
         }
-        if (element.localName == 'tex-inline') {
+        if (element.localName == 'span' &&
+            element.classes.contains('tex-inline')) {
           return Math.tex(
             element.text,
             textStyle: textStyle,
