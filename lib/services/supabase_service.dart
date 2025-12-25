@@ -52,7 +52,7 @@ class SupabaseService {
           .insert({
             'test_id': testId,
             'user_id': userId,
-            'started_at': DateTime.now().toIso8601String(),
+            'started_at': DateTime.now().toUtc().toIso8601String(),
           })
           .select('id, started_at')
           .single();
@@ -79,7 +79,7 @@ class SupabaseService {
     try {
       final submissionData = {
         'answers': answers,
-        'submitted_at': DateTime.now().toIso8601String()
+        'submitted_at': DateTime.now().toUtc().toIso8601String()
       };
 
       await supabase
