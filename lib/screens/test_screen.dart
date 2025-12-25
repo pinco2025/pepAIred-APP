@@ -374,7 +374,6 @@ class _TestScreenState extends State<TestScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         TeXView(
-                          renderingEngine: const TeXViewRenderingEngine.katex(),
                           child: TeXViewColumn(children: [
                             TeXViewDocument(
                               question.text,
@@ -500,7 +499,6 @@ class _TestScreenState extends State<TestScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: TeXView(
-                renderingEngine: const TeXViewRenderingEngine.katex(),
                 child: TeXViewDocument(option.text),
               ),
             ),
