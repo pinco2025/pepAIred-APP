@@ -375,15 +375,22 @@ class _TestScreenState extends State<TestScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         TeXView(
+                          loadingWidgetBuilder: (context) => const Center(
+                            child: CircularProgressIndicator(),
+                          ),
                           child: TeXViewColumn(children: [
                             TeXViewDocument(
                               question.text,
                               style: TeXViewStyle(
                                 contentColor: Colors.black,
                                 fontStyle: TeXViewFontStyle(fontSize: 18),
+                                backgroundColor: Colors.white,
                               ),
                             ),
                           ]),
+                          style: TeXViewStyle(
+                            backgroundColor: Colors.white,
+                          ),
                         ),
                         const SizedBox(height: 16),
                         if (question.image != null)
@@ -500,7 +507,18 @@ class _TestScreenState extends State<TestScreen> {
             const SizedBox(width: 12),
             Expanded(
               child: TeXView(
-                child: TeXViewDocument(option.text),
+                loadingWidgetBuilder: (context) => const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                child: TeXViewDocument(
+                  option.text,
+                  style: TeXViewStyle(
+                    contentColor: Colors.black,
+                    backgroundColor: Colors.transparent,
+                  ),
+                ),
               ),
             ),
           ],
