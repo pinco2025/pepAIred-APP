@@ -376,7 +376,6 @@ class _TestScreenState extends State<TestScreen> {
                       children: [
                         TeXView(
                           key: ValueKey('q_${question.uuid}'),
-                          renderingEngine: const TeXViewRenderingEngine.katex(),
                           loadingWidgetBuilder: (context) => const Center(
                             child: CircularProgressIndicator(),
                           ),
@@ -510,7 +509,6 @@ class _TestScreenState extends State<TestScreen> {
             Expanded(
               child: TeXView(
                 key: ValueKey('opt_${option.id}_${_testData!.questions[_currentQuestionIndex].uuid}'),
-                renderingEngine: const TeXViewRenderingEngine.katex(),
                 loadingWidgetBuilder: (context) => const SizedBox(
                   height: 20,
                   width: 20,
