@@ -7,7 +7,7 @@ class TestDataService {
   static Future<LocalTest> fetchTestData(String url) async {
     try {
       print('Fetching test data from: $url');
-      final response = await http.get(Uri.parse(url));
+      final response = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
 
       print('Response status: ${response.statusCode}');
       if (response.statusCode == 200) {
