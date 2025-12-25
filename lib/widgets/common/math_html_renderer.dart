@@ -34,6 +34,12 @@ class MathHtmlRenderer extends StatelessWidget {
       (match) => '<tex-inline>${match.group(1)}</tex-inline>',
     );
 
+    // Inline math: $...$
+    processed = processed.replaceAllMapped(
+      RegExp(r'\$(.*?)\$', dotAll: true),
+      (match) => '<tex-inline>${match.group(1)}</tex-inline>',
+    );
+
     return processed;
   }
 
