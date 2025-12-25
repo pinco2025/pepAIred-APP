@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
@@ -31,13 +32,14 @@ class MathHtmlRenderer extends StatelessWidget {
     // Inline math: \(...\)
     processed = processed.replaceAllMapped(
       RegExp(r'\\\((.*?)\\\)', dotAll: true),
-      (match) => '<span class="tex-inline">${match.group(1)}</span>',
+      (match) => '<span class="tex-inline">${htmlEscape.convert(match.group(1)!)}</span>',
     );
 
     // Inline math: $...$
+    // Use negative lookbehind to avoid matching escaped dollars: (?<!\\)\$
     processed = processed.replaceAllMapped(
-      RegExp(r'\$(.*?)\$', dotAll: true),
-      (match) => '<span class="tex-inline">${match.group(1)}</span>',
+      RegExp(r'(?<!\\)\$(.*?)(?<!\\)\$', dotAll: true),
+      (match) => '<span class="tex-inline">${htmlEscape.convert(match.group(1)!)}</span>',
     );
 
     return processed;
