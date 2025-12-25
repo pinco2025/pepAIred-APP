@@ -40,7 +40,9 @@ dependencies:
   http: ^1.2.0
   supabase_flutter: ^2.3.0
   shared_preferences: ^2.2.0
-  flutter_tex: ^4.0.0+3 # Required for rendering equations
+  flutter_widget_from_html: ^0.17.1
+  flutter_math_fork: ^0.7.4
+  provider: ^6.1.5+1
 
 dev_dependencies:
   flutter_test:
