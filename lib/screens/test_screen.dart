@@ -46,7 +46,10 @@ class _TestScreenState extends State<TestScreen> {
   Future<void> _initializeTest() async {
     try {
       // 1. Fetch Test Data JSON
-      final localTest = await TestDataService.fetchTestData(widget.test.url);
+      final localTest = await TestDataService.fetchTestData(widget.test.url)
+          .timeout(const Duration(seconds: 15), onTimeout: () {
+        throw TimeoutException('Failed to fetch test data: Timeout');
+      });
 
       // 2. Initialize Session (Create or Resume)
       final user = await SupabaseService.getCurrentUser();
@@ -60,7 +63,11 @@ class _TestScreenState extends State<TestScreen> {
         return;
       }
 
-      final existingSession = await SupabaseService.getExistingTestSession(user.id, widget.test.id);
+      final existingSession = await SupabaseService.getExistingTestSession(
+              user.id, widget.test.id)
+          .timeout(const Duration(seconds: 10), onTimeout: () {
+        throw TimeoutException('Failed to fetch session: Timeout');
+      });
 
       String sessionId;
       DateTime startTime;
@@ -73,7 +80,12 @@ class _TestScreenState extends State<TestScreen> {
           savedAnswers = Map<String, dynamic>.from(existingSession['answers']);
         }
       } else {
-        final newSession = await SupabaseService.createTestSession(user.id, widget.test.id);
+        final newSession = await SupabaseService.createTestSession(
+                user.id, widget.test.id)
+            .timeout(const Duration(seconds: 10), onTimeout: () {
+          throw TimeoutException('Failed to create session: Timeout');
+        });
+
         if (newSession != null) {
           sessionId = newSession['id'];
           startTime = DateTime.parse(newSession['started_at']);
