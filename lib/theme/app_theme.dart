@@ -18,7 +18,6 @@ class AppTheme {
       scaffoldBackgroundColor: backgroundColor,
       colorScheme: ColorScheme.fromSeed(
         seedColor: primaryColor,
-        background: backgroundColor,
         surface: cardColor,
       ),
       textTheme: GoogleFonts.poppinsTextTheme().apply(
