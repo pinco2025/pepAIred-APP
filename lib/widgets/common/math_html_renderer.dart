@@ -12,9 +12,13 @@ class _MathFactory extends WidgetFactory {
   void parse(BuildMetadata meta) {
     if (meta.element.classes.contains('tex-inline')) {
       final content = meta.element.text;
+      
+      // Clear the element's children to prevent them from being parsed
+      meta.element.nodes.clear();
+      
       meta.register(BuildOp(
         onTree: (meta, tree) {
-          tree.add(WidgetBit.inline(
+          tree.append(WidgetBit.inline(
             tree,
             Math.tex(
               content,
@@ -25,9 +29,10 @@ class _MathFactory extends WidgetFactory {
           ));
         },
       ));
-      // Stop further processing for this element (i.e., don't parse children as text)
+      
       return;
     }
+    
     super.parse(meta);
   }
 }
