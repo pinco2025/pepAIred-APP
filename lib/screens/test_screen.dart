@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:prepaired/managers/test_session_manager.dart';
 import 'package:prepaired/models/test_models.dart';
+import 'package:prepaired/screens/test_submitted_screen.dart';
 import 'package:prepaired/widgets/common/math_html_renderer.dart';
 import 'package:provider/provider.dart';
 
@@ -17,6 +18,7 @@ class _TestScreenState extends State<TestScreen> {
   late TestSessionManager _manager;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final bool _showPalette = true;
+  bool _canPop = false;
 
   @override
   void initState() {
@@ -67,7 +69,49 @@ class _TestScreenState extends State<TestScreen> {
              );
           }
 
-          return Scaffold(
+          return PopScope(
+            canPop: _canPop,
+            onPopInvoked: (didPop) async {
+              if (didPop) {
+                return;
+              }
+              final shouldPop = await showDialog<bool>(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: const Text('Exit Test?'),
+                    content: const Text(
+                      'Leaving the test may cause you to lose progress. Are you sure you want to exit?',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context, false);
+                        },
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context, true);
+                        },
+                        child: const Text('Exit'),
+                      ),
+                    ],
+                  );
+                },
+              );
+              if (shouldPop == true && context.mounted) {
+                setState(() {
+                  _canPop = true;
+                });
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                  }
+                });
+              }
+            },
+            child: Scaffold(
             key: _scaffoldKey,
             appBar: AppBar(
               title: const _TimerWidget(),
@@ -139,6 +183,7 @@ class _TestScreenState extends State<TestScreen> {
                   const SizedBox(width: 300, child: QuestionPalette()),
               ],
             ),
+            ),
           );
         },
       ),
@@ -192,10 +237,10 @@ class _SubmitButton extends StatelessWidget {
                             final manager = context.read<TestSessionManager>();
                             final success = await manager.submitTest();
                             if (success && context.mounted) {
-                              Navigator.of(context).pop();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Test Submitted Successfully!')),
+                              Navigator.of(context).pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => const TestSubmittedScreen(),
+                                ),
                               );
                             }
                           },
