@@ -3,6 +3,35 @@ import 'package:flutter/material.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 
+class _MathFactory extends WidgetFactory {
+  final TextStyle? textStyle;
+
+  _MathFactory({this.textStyle});
+
+  @override
+  void parse(BuildMetadata meta) {
+    if (meta.element.classes.contains('tex-inline')) {
+      final content = meta.element.text;
+      meta.register(BuildOp(
+        onTree: (meta, tree) {
+          tree.add(WidgetBit.inline(
+            tree,
+            Math.tex(
+              content,
+              textStyle: textStyle,
+              mathStyle: MathStyle.text,
+            ),
+            alignment: PlaceholderAlignment.baseline,
+          ));
+        },
+      ));
+      // Stop further processing for this element (i.e., don't parse children as text)
+      return;
+    }
+    super.parse(meta);
+  }
+}
+
 class MathHtmlRenderer extends StatelessWidget {
   final String content;
   final TextStyle? textStyle;
@@ -50,6 +79,7 @@ class MathHtmlRenderer extends StatelessWidget {
     return HtmlWidget(
       _preprocessContent(content),
       textStyle: textStyle,
+      factoryBuilder: () => _MathFactory(textStyle: textStyle),
       customWidgetBuilder: (element) {
         if (element.localName == 'tex-block') {
           return Center(
@@ -63,14 +93,7 @@ class MathHtmlRenderer extends StatelessWidget {
             ),
           );
         }
-        if (element.localName == 'span' &&
-            element.classes.contains('tex-inline')) {
-          return Math.tex(
-            element.text,
-            textStyle: textStyle,
-            mathStyle: MathStyle.text,
-          );
-        }
+        // Inline math is handled by _MathFactory
         return null;
       },
     );
