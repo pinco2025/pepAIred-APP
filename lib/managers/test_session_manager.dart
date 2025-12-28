@@ -166,8 +166,8 @@ class TestSessionManager extends ChangeNotifier {
     });
   }
 
-  Future<bool> submitTest() async {
-    if (_isSubmitting) return false;
+  Future<String?> submitTest() async {
+    if (_isSubmitting) return null;
 
     _isSubmitting = true;
     notifyListeners();
@@ -177,17 +177,17 @@ class TestSessionManager extends ChangeNotifier {
         final success = await SupabaseService.submitTest(_studentTestId!, _answers);
         if (success) {
           await SupabaseService.triggerScoreCalculation(_studentTestId!);
-          return true;
+          return _studentTestId;
         } else {
           throw Exception('Submission failed');
         }
       }
-      return false;
+      return null;
     } catch (e) {
       print('Error submitting test: $e');
       _isSubmitting = false;
       notifyListeners();
-      return false;
+      return null;
     }
   }
 

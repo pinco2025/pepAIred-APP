@@ -235,11 +235,11 @@ class _SubmitButton extends StatelessWidget {
                           onPressed: () async {
                             Navigator.pop(ctx);
                             final manager = context.read<TestSessionManager>();
-                            final success = await manager.submitTest();
-                            if (success && context.mounted) {
+                            final submissionId = await manager.submitTest();
+                            if (submissionId != null && context.mounted) {
                               Navigator.of(context).pushReplacement(
                                 MaterialPageRoute(
-                                  builder: (_) => const TestSubmittedScreen(),
+                                  builder: (_) => TestSubmittedScreen(submissionId: submissionId),
                                 ),
                               );
                             }
