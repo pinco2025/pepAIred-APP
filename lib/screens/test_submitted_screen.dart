@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:prepaired/screens/result_screen.dart';
 
 class TestSubmittedScreen extends StatelessWidget {
-  const TestSubmittedScreen({super.key});
+  final String submissionId;
+
+  const TestSubmittedScreen({super.key, required this.submissionId});
 
   @override
   Widget build(BuildContext context) {
@@ -43,7 +45,7 @@ class TestSubmittedScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).pushReplacement(
                       MaterialPageRoute(
-                        builder: (_) => const ResultScreen(),
+                        builder: (_) => ResultScreen(submissionId: submissionId),
                       ),
                     );
                   },

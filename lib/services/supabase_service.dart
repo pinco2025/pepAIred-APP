@@ -94,6 +94,21 @@ class SupabaseService {
     }
   }
 
+  static Future<Map<String, dynamic>?> fetchSubmissionData(
+      String submissionId) async {
+    try {
+      final response = await supabase
+          .from('student_tests')
+          .select('started_at, submitted_at, result_url')
+          .eq('id', submissionId)
+          .single();
+      return response;
+    } catch (e) {
+      print('Error fetching submission data: $e');
+      return null;
+    }
+  }
+
   static Future<void> triggerScoreCalculation(String submissionId) async {
     try {
       final session = supabase.auth.currentSession;
