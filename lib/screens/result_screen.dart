@@ -420,7 +420,7 @@ class _ResultScreenState extends State<ResultScreen> {
              final sectionMeta = result.sections.firstWhere((s) => s.name == sectionName, orElse: () => ResultSection(name: sectionName, marksPerQuestion: 4));
 
              return _buildSubjectRow(sectionName, scoreData, sectionMeta.marksPerQuestion);
-          }).toList(),
+          }),
         ],
       ),
     );
