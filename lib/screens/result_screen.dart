@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/result_models.dart';
 import '../services/supabase_service.dart';
+import 'package:prepaired/screens/solutions_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:percent_indicator/circular_percent_indicator.dart';
@@ -251,13 +252,14 @@ class _ResultScreenState extends State<ResultScreen> {
                width: double.infinity,
                child: ElevatedButton.icon(
                  onPressed: () {
-                   // Navigate to Review Screen (To be implemented)
-                   ScaffoldMessenger.of(context).showSnackBar(
-                     const SnackBar(content: Text("Review feature coming soon!")),
+                   Navigator.of(context).push(
+                     MaterialPageRoute(
+                       builder: (_) => SolutionsScreen(submissionId: widget.submissionId),
+                     ),
                    );
                  },
                  icon: const Icon(Icons.arrow_forward),
-                 label: const Text("Start Review"),
+                 label: const Text("Start Analysis"),
                  style: ElevatedButton.styleFrom(
                    backgroundColor: const Color(0xFF4C6FFF),
                    padding: const EdgeInsets.symmetric(vertical: 16),

@@ -99,12 +99,26 @@ class SupabaseService {
     try {
       final response = await supabase
           .from('student_tests')
-          .select('started_at, submitted_at, result_url')
+          .select('started_at, submitted_at, result_url, test_id, answers')
           .eq('id', submissionId)
           .single();
       return response;
     } catch (e) {
       print('Error fetching submission data: $e');
+      return null;
+    }
+  }
+
+  static Future<String?> fetchTestUrl(String testId) async {
+    try {
+      final response = await supabase
+          .from('tests')
+          .select('url')
+          .eq('testID', testId) // Assuming testID is the column name based on Test model
+          .single();
+      return response['url'] as String?;
+    } catch (e) {
+      print('Error fetching test URL: $e');
       return null;
     }
   }
