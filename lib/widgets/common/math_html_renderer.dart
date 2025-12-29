@@ -48,33 +48,77 @@ class MathHtmlRenderer extends StatelessWidget {
   });
 
   String _preprocessContent(String input) {
-    // Replace display math \[ ... \] or $$ ... $$ with <tex-block>...</tex-block>
+    // First, split the input by possible math delimiters to identify math blocks
+    // Delimiters: $$...$$, \[...\], \(...\), $...$
+
+    // We will build the result by iterating through segments.
+    // However, splitting by regex and keeping delimiters is complex.
+    // A simpler approach is to replace math blocks with placeholders,
+    // then process newlines in the remaining text, then restore math blocks.
+
+    final List<String> mathBlocks = [];
     String processed = input;
 
-    // Display math: $$...$$
+    // Function to replace match with placeholder
+    String replaceWithPlaceholder(Match match) {
+      mathBlocks.add(match.group(0)!);
+      return 'MATH_BLOCK_${mathBlocks.length - 1}';
+    }
+
+    // 1. Display math: $$...$$
     processed = processed.replaceAllMapped(
       RegExp(r'\$\$(.*?)\$\$', dotAll: true),
-      (match) => '<tex-block>${match.group(1)}</tex-block>',
+      replaceWithPlaceholder,
     );
 
-    // Display math: \[...\]
+    // 2. Display math: \[...\]
     processed = processed.replaceAllMapped(
       RegExp(r'\\\[(.*?)\\\]', dotAll: true),
-      (match) => '<tex-block>${match.group(1)}</tex-block>',
+      replaceWithPlaceholder,
     );
 
-    // Inline math: \(...\)
+    // 3. Inline math: \(...\)
     processed = processed.replaceAllMapped(
       RegExp(r'\\\((.*?)\\\)', dotAll: true),
-      (match) => '<span class="tex-inline">${htmlEscape.convert(match.group(1)!)}</span>',
+      replaceWithPlaceholder,
     );
 
-    // Inline math: $...$
-    // Use negative lookbehind to avoid matching escaped dollars: (?<!\\)\$
+    // 4. Inline math: $...$
     processed = processed.replaceAllMapped(
       RegExp(r'(?<!\\)\$(.*?)(?<!\\)\$', dotAll: true),
-      (match) => '<span class="tex-inline">${htmlEscape.convert(match.group(1)!)}</span>',
+      replaceWithPlaceholder,
     );
+
+    // Now replace newlines in the non-math text
+    processed = processed.replaceAll('\n', '<br>');
+
+    // Now restore math blocks and simultaneously convert them to HTML tags
+    // We loop through mathBlocks and replace the placeholders back
+
+    for (int i = 0; i < mathBlocks.length; i++) {
+      final block = mathBlocks[i];
+      String replacement = block;
+
+      // We need to apply the specific HTML formatting for each type of block
+      // effectively repeating the logic that was there before but on the protected block
+
+      if (block.startsWith(r'$$') && block.endsWith(r'$$')) {
+        final content = block.substring(2, block.length - 2);
+        replacement = '<tex-block>$content</tex-block>';
+      } else if (block.startsWith(r'\[') && block.endsWith(r'\]')) {
+        final content = block.substring(2, block.length - 2);
+        replacement = '<tex-block>$content</tex-block>';
+      } else if (block.startsWith(r'\(') && block.endsWith(r'\)')) {
+         final content = block.substring(2, block.length - 2);
+         replacement = '<span class="tex-inline">${htmlEscape.convert(content)}</span>';
+      } else if (block.startsWith(r'$') && block.endsWith(r'$')) {
+         // handle escaped dollar if any - though regex excluded them from being matched as delimiters
+         final content = block.substring(1, block.length - 1);
+         replacement = '<span class="tex-inline">${htmlEscape.convert(content)}</span>';
+      }
+
+      processed = processed.replaceFirst('MATH_BLOCK_$i', replacement);
+    }
 
     return processed;
   }

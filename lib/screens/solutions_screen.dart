@@ -48,29 +48,96 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
         _userAnswers = answers;
       });
 
-      // 2. Fetch Test URL
-      final testUrl = await SupabaseService.fetchTestUrl(testId);
+      // 2. Fetch Test URLs
+      final urls = await SupabaseService.fetchTestUrls(testId);
+      final testUrl = urls['url'];
+      final solutionsUrl = urls['solutions_url'];
       if (testUrl == null) throw Exception("Test data URL not found");
 
       // 3. Fetch Test JSON
-      final response = await http.get(Uri.parse(testUrl));
-      if (response.statusCode != 200) throw Exception("Failed to load test data");
+      final testResponse = await http.get(Uri.parse(testUrl));
+      if (testResponse.statusCode != 200) throw Exception("Failed to load test data");
 
-      final jsonMap = json.decode(response.body);
+      final testJsonMap = json.decode(testResponse.body);
+
+      // 4. Fetch Solution JSON if available
+      Map<String, dynamic> solutionsMap = {};
+      if (solutionsUrl != null && solutionsUrl.isNotEmpty) {
+        try {
+          final solutionsResponse = await http.get(Uri.parse(solutionsUrl));
+          if (solutionsResponse.statusCode == 200) {
+            final solJson = json.decode(solutionsResponse.body);
+            // Assuming structure { "questions": [ { "id": "q1", "solution_text": "..." } ] }
+            List<dynamic> solQuestionsList = [];
+            if (solJson is Map && solJson.containsKey('questions')) {
+              solQuestionsList = solJson['questions'];
+            } else if (solJson is List) {
+              solQuestionsList = solJson;
+            }
+
+            for (var sol in solQuestionsList) {
+              if (sol is Map && sol.containsKey('id')) {
+                solutionsMap[sol['id'].toString()] = sol;
+              }
+            }
+          }
+        } catch (e) {
+          print('Error fetching solutions: $e');
+        }
+      }
 
       // Parse questions
       // Assuming structure: { "questions": [...] } or list [...]
       List<dynamic> questionsList;
-      if (jsonMap is Map && jsonMap.containsKey('questions')) {
-        questionsList = jsonMap['questions'];
-      } else if (jsonMap is List) {
-        questionsList = jsonMap;
+      if (testJsonMap is Map && testJsonMap.containsKey('questions')) {
+        questionsList = testJsonMap['questions'];
+      } else if (testJsonMap is List) {
+        questionsList = testJsonMap;
       } else {
         // Fallback for some formats
         questionsList = [];
       }
 
-      final questions = questionsList.map((q) => SolutionQuestion.fromJson(q)).toList();
+      final questions = questionsList.map((q) {
+        // Merge solution data if available
+        final id = q['id'].toString();
+        if (solutionsMap.containsKey(id)) {
+          final solData = solutionsMap[id];
+          if (solData['solution_text'] != null) {
+            // Check if solution_image_url is present and not empty
+            String? solutionText = solData['solution_text'].toString();
+
+            // If there's an image, append it to the solution text or handle it
+            // For now, let's append it as an image tag if MathHtmlRenderer supports it,
+            // or we can modify SolutionQuestion to store it separately.
+            // But wait, SolutionQuestion has 'solution' field.
+            // The prompt says: "make sure to render the image field too inside the json which can have a non-null value so images for options should be rendered too."
+            // AND "the solution to each question with a solution_url is in the tests table... check this raw url for format example"
+
+            // The solution JSON has solution_image_url.
+            // I should probably append this to the solution text or update SolutionQuestion model.
+            // SolutionQuestion has `solution` (String?).
+
+            if (solData['solution_image_url'] != null && solData['solution_image_url'].toString().isNotEmpty) {
+              solutionText += '\n\n<img src="${solData['solution_image_url']}" />';
+            }
+
+            // We need to inject this into the question map before parsing
+            // Or create SolutionQuestion manually.
+            // It's easier to modify q map.
+            // Note: q is usually an unmodifiable map if from json.decode directly sometimes? No, usually generic Map.
+            // But q might be internal linked map.
+
+            // Let's create a copy or just parse and then copyWith if we had copyWith.
+            // We don't have copyWith.
+            // So let's modify the map.
+             Map<String, dynamic> qMap = Map<String, dynamic>.from(q);
+             qMap['solution'] = solutionText;
+             return SolutionQuestion.fromJson(qMap);
+          }
+        }
+        return SolutionQuestion.fromJson(q);
+      }).toList();
 
       if (!mounted) return;
 
@@ -315,7 +382,21 @@ class _SolutionsScreenState extends State<SolutionsScreen> {
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: MathHtmlRenderer(content: option.text),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                MathHtmlRenderer(content: option.text),
+                if (option.image != null) ...[
+                  const SizedBox(height: 8),
+                  Image.network(
+                    option.image!,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Text('Failed to load image', style: TextStyle(color: Colors.red, fontSize: 10)),
+                  ),
+                ],
+              ],
+            ),
           ),
           if (isCorrect)
             const Icon(Icons.check_circle, color: Colors.green),
