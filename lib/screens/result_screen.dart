@@ -81,8 +81,8 @@ class _ResultScreenState extends State<ResultScreen> {
       final minutes = diff.inMinutes % 60;
 
       List<String> parts = [];
-      if (hours > 0) parts.push("$hours H");
-      if (minutes > 0 || hours == 0) parts.push("$minutes Min");
+      if (hours > 0) parts.add("$hours H");
+      if (minutes > 0 || hours == 0) parts.add("$minutes Min");
       return parts.join(' ');
     }
     return "??";
