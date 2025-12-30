@@ -44,6 +44,23 @@ class SupabaseService {
     }
   }
 
+  static Future<Map<String, String?>> fetchTestUrls(String testId) async {
+    try {
+      final response = await supabase
+          .from('tests')
+          .select('url, solutions_url')
+          .eq('testID', testId)
+          .single();
+      return {
+        'url': response['url'] as String?,
+        'solutions_url': response['solutions_url'] as String?,
+      };
+    } catch (e) {
+      print('Error fetching test URLs: $e');
+      return {'url': null, 'solutions_url': null};
+    }
+  }
+
   static Future<Map<String, dynamic>?> createTestSession(
       String userId, String testId) async {
     try {

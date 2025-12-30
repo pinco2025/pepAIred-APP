@@ -436,8 +436,20 @@ class _OptionWidget extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: MathHtmlRenderer(
-                content: option.text,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  MathHtmlRenderer(content: option.text),
+                  if (option.image != null) ...[
+                    const SizedBox(height: 8),
+                    Image.network(
+                      option.image!,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const Text('Failed to load image', style: TextStyle(color: Colors.red, fontSize: 10)),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
